@@ -1,34 +1,51 @@
+import { Octokit } from "@octokit/rest";
+
 export default async function handler(req, res) {
-  const token = process.env.GITHUB_TOKEN;
-  const repo = "triggui-content";
-  const owner = "badirnakid";
-  const filePath = "contador.json";
+  // 👉 Permitir peticiones desde app.triggui.com
+  res.setHeader("Access-Control-Allow-Origin", "https://app.triggui.com");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`;
-  const headers = {
-    Authorization: `token ${token}`,
-    "Content-Type": "application/json",
-    Accept: "application/vnd.github.v3+json"
-  };
+  // 👉 Responder a preflight (opcional, pero recomendable)
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
 
-  const response = await fetch(url, { headers });
-  const data = await response.json();
-  const content = JSON.parse(atob(data.content));
-  const newCount = (content.total || 0) + 1;
+  const owner = "badirnakid"; // tu usuario de GitHub
+  const repo = "triggui-content"; // tu repo con contador.json
+  const path = "contador.json";
 
-  const updatedContent = {
-    total: newCount
-  };
-
-  const result = await fetch(url, {
-    method: "PUT",
-    headers,
-    body: JSON.stringify({
-      message: "Incrementar contador",
-      content: btoa(JSON.stringify(updatedContent, null, 2)),
-      sha: data.sha
-    })
+  const octokit = new Octokit({
+    auth: process.env.GITHUB_TOKEN,
   });
 
-  res.status(200).json({ success: true, total: newCount });
+  try {
+    // Obtener el contenido actual
+    const { data: file } = await octokit.repos.getContent({
+      owner,
+      repo,
+      path,
+    });
+
+    const content = Buffer.from(file.content, "base64").toString("utf8");
+    const json = JSON.parse(content);
+    const total = (json.total || 0) + 1;
+
+    // Actualizar el contenido con el nuevo total
+    const newContent = Buffer.from(JSON.stringify({ total }, null, 2)).toString("base64");
+
+    await octokit.repos.createOrUpdateFileContents({
+      owner,
+      repo,
+      path,
+      message: `increment total to ${total}`,
+      content: newContent,
+      sha: file.sha,
+    });
+
+    res.status(200).json({ success: true, total });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
 }
