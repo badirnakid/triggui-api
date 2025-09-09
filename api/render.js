@@ -1,5 +1,4 @@
-import { chromium } from "playwright-core";
-import { execPath } from "playwright-core/lib/server";
+import { chromium } from "playwright";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -7,7 +6,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Parsear body
+    // Parsear body manual
     let body = "";
     await new Promise((resolve) => {
       req.on("data", (chunk) => (body += chunk.toString()));
@@ -15,11 +14,12 @@ export default async function handler(req, res) {
     });
 
     const { html } = JSON.parse(body || "{}");
-    if (!html) return res.status(400).json({ error: "Falta HTML en el body" });
+    if (!html) {
+      return res.status(400).json({ error: "Falta HTML en el body" });
+    }
 
-    // 👇 Lanzar Chromium usando el ejecutable de Playwright instalado en el entorno
+    // Lanzar Chromium incluido en Playwright
     const browser = await chromium.launch({
-      executablePath: execPath("chromium"),
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
       headless: true,
     });
@@ -28,6 +28,7 @@ export default async function handler(req, res) {
     await page.setViewportSize({ width: 1080, height: 1920 });
     await page.setContent(html, { waitUntil: "load" });
 
+    // PNG retina-like
     const buffer = await page.screenshot({ type: "png" });
     await browser.close();
 
