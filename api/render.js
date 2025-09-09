@@ -1,11 +1,15 @@
 import chromium from "chrome-aws-lambda";
 
 export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Método no permitido, usa POST" });
+  }
+
   try {
-    // 1. Obtener HTML del body
-    const { html } = req.body || {};
+    // 1. Parsear body como JSON
+    const { html } = await req.json();
     if (!html) {
-      return res.status(400).json({ error: "Falta HTML" });
+      return res.status(400).json({ error: "Falta HTML en el body" });
     }
 
     // 2. Lanzar Chrome headless en entorno serverless
@@ -13,7 +17,7 @@ export default async function handler(req, res) {
       args: [...chromium.args, "--hide-scrollbars", "--disable-web-security"],
       defaultViewport: { width: 1080, height: 1920, deviceScaleFactor: 3 },
       executablePath: await chromium.executablePath,
-      headless: chromium.headless,
+      headless: true,
     });
 
     const page = await browser.newPage();
@@ -21,7 +25,6 @@ export default async function handler(req, res) {
 
     // 3. Tomar screenshot en PNG
     const buffer = await page.screenshot({ type: "png" });
-
     await browser.close();
 
     // 4. Responder con la imagen
@@ -29,6 +32,8 @@ export default async function handler(req, res) {
     res.send(buffer);
   } catch (err) {
     console.error("❌ Error render:", err);
-    res.status(500).json({ error: "Error al renderizar HTML" });
+    res
+      .status(500)
+      .json({ error: "Error al renderizar HTML", detail: err.message });
   }
 }
