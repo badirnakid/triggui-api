@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "type": "module",
   "dependencies": {
-    "@octokit/rest": "^20.0.0"
+    "@octokit/rest": "^20.0.0",
+    "puppeteer-core": "^21.5.0",
+    "chrome-aws-lambda": "^10.1.0"
   }
 }
