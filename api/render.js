@@ -6,18 +6,24 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1. Parsear body como JSON
-    const { html } = await req.json();
+    // 1. Leer body manualmente
+    let body = "";
+    await new Promise((resolve) => {
+      req.on("data", (chunk) => { body += chunk.toString(); });
+      req.on("end", resolve);
+    });
+
+    const { html } = JSON.parse(body || "{}");
     if (!html) {
       return res.status(400).json({ error: "Falta HTML en el body" });
     }
 
-    // 2. Lanzar Chrome headless en entorno serverless
+    // 2. Lanzar Chrome en serverless
     const browser = await chromium.puppeteer.launch({
       args: [...chromium.args, "--hide-scrollbars", "--disable-web-security"],
       defaultViewport: { width: 1080, height: 1920, deviceScaleFactor: 3 },
       executablePath: await chromium.executablePath,
-      headless: true,
+      headless: chromium.headless,
     });
 
     const page = await browser.newPage();
