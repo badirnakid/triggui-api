@@ -6,7 +6,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Parsear body manual
+    // Leer body
     let body = "";
     await new Promise((resolve) => {
       req.on("data", (chunk) => (body += chunk.toString()));
@@ -14,11 +14,9 @@ export default async function handler(req, res) {
     });
 
     const { html } = JSON.parse(body || "{}");
-    if (!html) {
-      return res.status(400).json({ error: "Falta HTML en el body" });
-    }
+    if (!html) return res.status(400).json({ error: "Falta HTML" });
 
-    // Lanzar Chromium incluido en Playwright
+    // ✅ Chromium incluido en el paquete playwright
     const browser = await chromium.launch({
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
       headless: true,
@@ -28,7 +26,6 @@ export default async function handler(req, res) {
     await page.setViewportSize({ width: 1080, height: 1920 });
     await page.setContent(html, { waitUntil: "load" });
 
-    // PNG retina-like
     const buffer = await page.screenshot({ type: "png" });
     await browser.close();
 
