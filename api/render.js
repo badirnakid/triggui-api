@@ -1,4 +1,4 @@
-import chromium from "chrome-aws-lambda";
+import { chromium } from "@playwright/test";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -6,7 +6,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Parsear body manual
+    // Parsear body
     let body = "";
     await new Promise((resolve) => {
       req.on("data", (chunk) => (body += chunk.toString()));
@@ -16,30 +16,24 @@ export default async function handler(req, res) {
     const { html } = JSON.parse(body || "{}");
     if (!html) return res.status(400).json({ error: "Falta HTML en el body" });
 
-    // ✅ Usar solo la ruta de chrome-aws-lambda
-    const browser = await chromium.puppeteer.launch({
-      args: chromium.args,
-      defaultViewport: {
-        width: 1080,
-        height: 1920,
-        deviceScaleFactor: 3,
-      },
-      executablePath: await chromium.executablePath, // 👈 clave
-      headless: chromium.headless,
+    // Lanzar Chromium de Playwright
+    const browser = await chromium.launch({
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
 
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
+    await page.setViewportSize({ width: 1080, height: 1920 });
+    await page.setContent(html, { waitUntil: "networkidle" });
 
-    const buffer = await page.screenshot({ type: "png" });
+    // Screenshot retina-like (simular scale 3 con mayor resolución)
+    const buffer = await page.screenshot({ type: "png", scale: "device" });
+
     await browser.close();
 
     res.setHeader("Content-Type", "image/png");
     res.send(buffer);
   } catch (err) {
     console.error("❌ Error render:", err);
-    res
-      .status(500)
-      .json({ error: "Error al renderizar HTML", detail: err.message });
+    res.status(500).json({ error: "Error al renderizar HTML", detail: err.message });
   }
 }
