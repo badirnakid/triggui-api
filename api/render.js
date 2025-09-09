@@ -1,4 +1,5 @@
-import { chromium } from "playwright";
+import chromium from "@sparticuz/chromium";
+import puppeteer from "puppeteer-core";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -6,7 +7,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Leer body
     let body = "";
     await new Promise((resolve) => {
       req.on("data", (chunk) => (body += chunk.toString()));
@@ -16,15 +16,16 @@ export default async function handler(req, res) {
     const { html } = JSON.parse(body || "{}");
     if (!html) return res.status(400).json({ error: "Falta HTML" });
 
-    // ✅ Chromium incluido en el paquete playwright
-    const browser = await chromium.launch({
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-      headless: true,
+    const browser = await puppeteer.launch({
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
     });
 
     const page = await browser.newPage();
-    await page.setViewportSize({ width: 1080, height: 1920 });
-    await page.setContent(html, { waitUntil: "load" });
+    await page.setViewport({ width: 1080, height: 1920, deviceScaleFactor: 3 });
+    await page.setContent(html, { waitUntil: "networkidle0" });
 
     const buffer = await page.screenshot({ type: "png" });
     await browser.close();
@@ -33,8 +34,6 @@ export default async function handler(req, res) {
     res.send(buffer);
   } catch (err) {
     console.error("❌ Error render:", err);
-    res
-      .status(500)
-      .json({ error: "Render falló", detail: err.message || err.toString() });
+    res.status(500).json({ error: "Render falló", detail: err.message });
   }
 }
