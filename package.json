@@ -1,9 +1,7 @@
 {
-  "name": "triggui-api",
-  "version": "1.0.0",
-  "type": "module",
   "dependencies": {
     "@octokit/rest": "^20.0.0",
-    "playwright": "^1.44.0"
+    "puppeteer-core": "^22.6.0",
+    "@sparticuz/chromium": "^119.0.2"
   }
 }
