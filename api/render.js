@@ -6,18 +6,17 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Parsear body
+    // Parsear body manual
     let body = "";
     await new Promise((resolve) => {
       req.on("data", (chunk) => (body += chunk.toString()));
       req.on("end", resolve);
     });
+
     const { html } = JSON.parse(body || "{}");
     if (!html) return res.status(400).json({ error: "Falta HTML en el body" });
 
-    // Lanzar Chrome
-    const executablePath = (await chromium.executablePath) || "/usr/bin/chromium-browser";
-
+    // ✅ Usar solo la ruta de chrome-aws-lambda
     const browser = await chromium.puppeteer.launch({
       args: chromium.args,
       defaultViewport: {
@@ -25,8 +24,8 @@ export default async function handler(req, res) {
         height: 1920,
         deviceScaleFactor: 3,
       },
-      executablePath,
-      headless: true,
+      executablePath: await chromium.executablePath, // 👈 clave
+      headless: chromium.headless,
     });
 
     const page = await browser.newPage();
@@ -39,6 +38,8 @@ export default async function handler(req, res) {
     res.send(buffer);
   } catch (err) {
     console.error("❌ Error render:", err);
-    res.status(500).json({ error: "Error al renderizar HTML", detail: err.message });
+    res
+      .status(500)
+      .json({ error: "Error al renderizar HTML", detail: err.message });
   }
 }
